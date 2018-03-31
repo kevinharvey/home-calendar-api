@@ -1,6 +1,7 @@
 from __future__ import print_function
 import httplib2
 import os
+import datetime
 
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -8,51 +9,56 @@ from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
-
-import datetime
+from  oauth2client.clientsecrets import InvalidClientSecretsError
 
 
 app = Flask(__name__)
 CORS(app)
+app.config['CALENDAR_ID'] = os.environ['CALENDAR_ID']
 
-# If modifying these scopes, delete your previously saved credentials
-# at ~/.credentials/calendar-python-quickstart.json
 SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'
 CLIENT_SECRET_FILE = 'client_secret.json'
-APPLICATION_NAME = 'Google Calendar API Python Quickstart'
-CALENDER_ID = ''
+APPLICATION_NAME = "Harveys' Home Calendar"
 
 
 def get_credentials():
     """Gets valid user credentials from storage.
-
-    If nothing has been stored, or if the stored credentials are invalid,
-    the OAuth2 flow is completed to obtain the new credentials.
-
-    Returns:
-        Credentials, the obtained credential.
     """
     home_dir = os.path.expanduser('~')
-    credential_dir = os.path.join(home_dir, '.credentials')
+    credential_dir = os.path.join(home_dir, '.google_credentials')
     if not os.path.exists(credential_dir):
         os.makedirs(credential_dir)
     credential_path = os.path.join(credential_dir,
-                                   'calendar-python-quickstart.json')
+                                   'harveys-home-calendar.json')
 
     store = Storage(credential_path)
     credentials = store.get()
     if not credentials or credentials.invalid:
-        flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
+        
+        try:
+            flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
+        except InvalidClientSecretsError as e:
+            current_directory = os.getcwd()
+            message = (
+                'Cannot find client_secret.json.\n'
+                '\t1. Go to https://console.developers.google.com/apis/credentials\n'
+                '\t2. Select the correct project\n'
+                '\t3. Download the correct OAuth 2.0 client IDs JSON\n'
+                f'\t4. Save the file as {current_directory}/client_secret.json'
+            )
+            raise type(e)(message)
+        
         flow.user_agent = APPLICATION_NAME
         credentials = tools.run_flow(flow, store, flags=None)
         print('Storing credentials to ' + credential_path)
+    
     return credentials
+
 
 @app.route("/", methods=['GET', 'OPTIONS'])
 def get_events():
-    """Shows basic usage of the Google Calendar API.
-
-    Creates a Google Calendar API service object and outputs a list of the next
+    """
+    Create a Google Calendar API service object and output a list of the next
     10 events on the user's calendar.
     """
     credentials = get_credentials()
@@ -62,11 +68,11 @@ def get_events():
     now = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
     print('Getting the upcoming 10 events')
     eventsResult = service.events().list(
-        calendarId=CALENDER_ID, timeMin=now, maxResults=10, singleEvents=True,
+        calendarId=app.config['CALENDAR_ID'], timeMin=now, maxResults=10, singleEvents=True,
         orderBy='startTime').execute()
 
     return jsonify(eventsResult)
 
-
-# if __name__ == '__main__':
-#     main()
+if __name__ == "__main__":
+    get_credentials()
+    app.run()
