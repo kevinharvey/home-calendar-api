@@ -3,13 +3,13 @@ import httplib2
 import os
 import datetime
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
-from  oauth2client.clientsecrets import InvalidClientSecretsError
+from oauth2client.clientsecrets import InvalidClientSecretsError
 
 
 app = Flask(__name__)
@@ -65,13 +65,27 @@ def get_events():
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('calendar', 'v3', http=http)
 
-    now = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
-    print('Getting the upcoming 10 events')
-    eventsResult = service.events().list(
-        calendarId=app.config['CALENDAR_ID'], timeMin=now, maxResults=10, singleEvents=True,
-        orderBy='startTime').execute()
+    start = request.args.get('start', None)
+    if not start:
+        start = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
+        print(start)
+
+    end = request.args.get('end', None)
+
+    kwargs = {
+        'calendarId': app.config['CALENDAR_ID'], 
+        'timeMin': start, 
+        'maxResults': 100,
+        'singleEvents': True,
+        'orderBy': 'startTime'
+    }
+    if end:
+        kwargs['timeMax'] = end
+
+    eventsResult = service.events().list(**kwargs).execute()
 
     return jsonify(eventsResult)
+
 
 if __name__ == "__main__":
     get_credentials()

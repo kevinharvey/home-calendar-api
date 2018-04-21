@@ -31,5 +31,5 @@ oauth2client.clientsecrets.InvalidClientSecretsError: Cannot find client_secret.
 ```
 6. Run the app
 ```
-$ python app.py
+$ flask run
 ```
