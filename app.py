@@ -2,6 +2,7 @@ from __future__ import print_function
 import httplib2
 import os
 import datetime
+import logging
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -19,6 +20,9 @@ app.config['CALENDAR_ID'] = os.environ['CALENDAR_ID']
 SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'
 CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = "Harveys' Home Calendar"
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_credentials():
@@ -50,9 +54,14 @@ def get_credentials():
         
         flow.user_agent = APPLICATION_NAME
         credentials = tools.run_flow(flow, store, flags=None)
-        print('Storing credentials to ' + credential_path)
+        logger.info('Storing credentials to ' + credential_path)
     
     return credentials
+
+
+credentials = get_credentials()
+http = credentials.authorize(httplib2.Http())
+service = discovery.build('calendar', 'v3', http=http)
 
 
 @app.route("/", methods=['GET', 'OPTIONS'])
@@ -61,14 +70,9 @@ def get_events():
     Create a Google Calendar API service object and output a list of the next
     10 events on the user's calendar.
     """
-    credentials = get_credentials()
-    http = credentials.authorize(httplib2.Http())
-    service = discovery.build('calendar', 'v3', http=http)
-
     start = request.args.get('start', None)
     if not start:
         start = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
-        print(start)
 
     end = request.args.get('end', None)
 
